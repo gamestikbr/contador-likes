@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Contador de Likes</title>
-    <link rel="stylesheet" href="https://cdn.rawgit.com/HubSpot/odometer/gh-pages/themes/odometer-theme-default.css">
+
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -15,6 +15,8 @@
             height: 100vh;
             background: transparent;
             margin: 0;
+            flex-direction: column;
+            gap: 20px;
         }
 
         .counter-container {
@@ -22,6 +24,132 @@
             padding: 30px;
             border-radius: 20px;
             width: 320px;
+        }
+
+        /* Painel de configuração */
+        .config-panel {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            width: 320px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .config-panel.hidden {
+            display: none;
+        }
+
+        .config-title {
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            text-align: center;
+            text-shadow: 0 0 10px rgba(0, 245, 255, 0.5);
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            display: block;
+            color: white;
+            font-size: 12px;
+            margin-bottom: 5px;
+            text-shadow: 0 0 5px rgba(0, 245, 255, 0.3);
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.15);
+            color: white;
+            font-size: 14px;
+            box-sizing: border-box;
+            transition: all 0.3s ease;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #00f5ff;
+            box-shadow: 0 0 10px rgba(0, 245, 255, 0.5);
+        }
+
+        .input-group input::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(90deg, #00f5ff, #7f00ff);
+            color: white;
+            text-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+        }
+
+        .btn-primary:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(0, 245, 255, 0.6);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Botão toggle pequeno */
+        .toggle-config-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #00f5ff, #7f00ff);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            z-index: 1000;
+            box-shadow: 0 0 15px rgba(0, 245, 255, 0.5);
+        }
+
+        .toggle-config-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 25px rgba(0, 245, 255, 0.8);
+        }
+
+        .toggle-config-btn.show {
+            display: flex;
         }
 
         /* Barra base */
@@ -80,11 +208,38 @@
             color: white;
             font-weight: bold;
             text-shadow: 0 0 15px rgba(0, 255, 255, 0.8);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
         }
 
-        .title {
-            font-size: 16px;
-            opacity: 0.8;
+        /* Linha do ícone + contador */
+        .like-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Ícone animado */
+        .like-icon {
+            font-size: 32px;
+            filter: drop-shadow(0 0 12px cyan);
+            animation: floatLike 2s infinite ease-in-out;
+        }
+
+        @keyframes floatLike {
+            0% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-6px);
+            }
+
+            100% {
+                transform: translateY(0);
+            }
         }
 
         /* Contador neon */
@@ -141,107 +296,233 @@
                 transform: translateX(0);
             }
         }
+
+        /* Confetti container */
+        #confetti-container {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            top: 0;
+            left: 0;
+            overflow: hidden;
+        }
+
+        /* Confetti piece */
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            opacity: 0.9;
+            animation: confettiFall 1.5s linear forwards;
+        }
+
+        @keyframes confettiFall {
+            0% {
+                transform: translateY(0) rotate(0deg);
+            }
+
+            100% {
+                transform: translateY(200px) rotate(360deg);
+                opacity: 0;
+            }
+        }
     </style>
 </head>
 
 <body>
 
-    <div class="counter-container">
-        <!-- Barra de Progresso -->
-        <div class="progress-bar-container">
-            <div id="progress-bar" class="progress-bar"></div>
-            <div class="progress-content">
-                <!-- <div class="title">Meta de Like</div> -->
-                <div id="like-counter">0/100</div>
-            </div>
+    <!-- Botão toggle para modo live -->
+    <button class="toggle-config-btn" id="toggleConfigBtn" onclick="toggleConfigPanel()">⚙️</button>
+
+    <!-- Painel de configuração -->
+    <div class="config-panel" id="configPanel">
+        <div class="config-title">⚙️ Configurações</div>
+
+        <div class="input-group">
+            <label for="videoUrl">URL do vídeo/live:</label>
+            <input type="text" id="videoUrl" placeholder="https://youtube.com/watch?v=...">
+        </div>
+
+        <div class="input-group">
+            <label for="goalInput">Meta inicial de likes:</label>
+            <input type="number" id="goalInput" placeholder="100" min="1">
+        </div>
+
+        <div class="input-group">
+            <label for="incrementInput">Aumentar meta em:</label>
+            <input type="number" id="incrementInput" placeholder="50" min="0">
+        </div>
+
+        <div class="input-group">
+            <label for="multipleInput">Multiplicador:</label>
+            <input type="number" id="multipleInput" placeholder="2" min="1" step="0.1" value="2">
+        </div>
+
+        <div class="button-group">
+            <button class="btn btn-secondary" onclick="clearConfig()">Limpar</button>
+            <button class="btn btn-primary" onclick="startLiveMode()">Salvar</button>
         </div>
     </div>
+
+    <div class="counter-container">
+
+        <div class="progress-bar-container">
+
+            <!-- Barra -->
+            <div id="progress-bar" class="progress-bar"></div>
+
+            <!-- Confetes -->
+            <div id="confetti-container"></div>
+
+            <!-- Conteúdo -->
+
+            <div class="progress-content">
+                <span>Meta de likes</span>
+                <div class="like-row">
+                    <span class="like-icon">👍</span>
+                    <div id="like-counter">0/100</div>
+                </div>
+            </div>
+
+        </div>
+
     </div>
 
-    <!-- Inclua o Odometer.js -->
-    <script src="https://cdn.rawgit.com/HubSpot/odometer/gh-pages/odometer.js"></script>
     <script>
         const apiKey = "AIzaSyCfYdJr8i8CdybGPKWlM1N9vGxcBsl5JYE";
+        let updateInterval = null;
 
-        initGoalLike();
+        // Carregar configurações salvas ao iniciar
+        window.onload = function () {
+            loadSavedConfig();
+        };
+
+        function loadSavedConfig() {
+            const videoId = localStorage.getItem("videoId");
+            const goal = localStorage.getItem("goal");
+            const increment = localStorage.getItem("increment");
+            const multiple = localStorage.getItem("multiple") || "2";
+
+            if (videoId) {
+                // Reconstrói a URL aproximada (só para exibição)
+                document.getElementById("videoUrl").value = `https://youtube.com/watch?v=${videoId}`;
+            }
+            if (goal) {
+                document.getElementById("goalInput").value = goal;
+            }
+            if (increment) {
+                document.getElementById("incrementInput").value = increment;
+            }
+            document.getElementById("multipleInput").value = multiple;
+
+            // Se já tem configuração salva, pode iniciar automaticamente
+            if (videoId && goal) {
+                // Usuário pode escolher iniciar manualmente
+            }
+        }
+
+        function clearConfig() {
+            localStorage.clear();
+            document.getElementById("videoUrl").value = "";
+            document.getElementById("goalInput").value = "";
+            document.getElementById("incrementInput").value = "";
+            document.getElementById("multipleInput").value = "2";
+
+            if (updateInterval) {
+                clearInterval(updateInterval);
+                updateInterval = null;
+            }
+        }
+
+        function toggleConfigPanel() {
+            const panel = document.getElementById("configPanel");
+            panel.classList.toggle("hidden");
+        }
+
+        function startLiveMode() {
+            const videoUrl = document.getElementById("videoUrl").value;
+            const goal = document.getElementById("goalInput").value;
+            const increment = document.getElementById("incrementInput").value;
+            const multiple = document.getElementById("multipleInput").value;
+
+            // Validações
+            if (!videoUrl) {
+                alert("Por favor, informe a URL do vídeo/live!");
+                return;
+            }
+            if (!goal || goal < 0) {
+                alert("Por favor, informe uma meta válida!");
+                return;
+            }
+            if (!increment && increment !== "0") {
+                alert("Por favor, informe o incremento (ou 0)!");
+                return;
+            }
+
+            // Salvar configurações
+            youTubeUrlHandle(videoUrl);
+            localStorage.setItem("goal", goal);
+            localStorage.setItem("increment", increment);
+            localStorage.setItem("multiple", multiple || "2");
+
+            // Entrar em modo live
+            document.getElementById("configPanel").classList.add("hidden");
+            document.getElementById("toggleConfigBtn").classList.add("show");
+
+            // Iniciar a contagem
+            initGoalLike();
+        }
+
         async function initGoalLike() {
+            const videoId = localStorage.getItem("videoId");
 
-            if (confirm("Deseja incluir uma nova configuração?")) {
-                localStorage.removeItem("videoId");
-                localStorage.removeItem("channel");
-                localStorage.removeItem("increment");
-                localStorage.removeItem("multiple");
-                localStorage.removeItem("goal");
+            if (!videoId) {
+                alert("Video ID não encontrado!");
+                return;
             }
 
-            if (!localStorage.getItem("channel") && !localStorage.getItem("videoId")) {
-                let url = prompt("Informe a url do canal ou da live");
-                youTubeUrlHandle(url);
+            const url =
+                `https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${videoId}&key=${apiKey}`;
+
+            let goalLikes = parseInt(localStorage.getItem("goal"));
+            let multiple = parseFloat(localStorage.getItem("multiple"));
+            let increment = parseInt(localStorage.getItem("increment"));
+
+            const likeCounter = document.getElementById("like-counter");
+            const progressBar = document.getElementById("progress-bar");
+
+            let lastLikes = 0;
+
+            // Limpar intervalo anterior se existir
+            if (updateInterval) {
+                clearInterval(updateInterval);
             }
 
-            if (!localStorage.getItem("goal")) {
-                goal = prompt("Informe a meta inicial");
-                localStorage.setItem("goal", goal)
-            }
+            // Buscar imediatamente
+            atualizarLikes(url);
 
-            if (!localStorage.getItem("increment")) {
-                increment = prompt("De quanto em quanto deseja aumentar a meta? 0 Para deixar desativado");
-                localStorage.setItem("increment", increment)
-            }
+            // Depois atualizar a cada 3 segundos
+            updateInterval = setInterval(() => atualizarLikes(url), 3000);
 
-            if (!localStorage.getItem("increment") || parseInt(localStorage.getItem("increment")) == 0) {
-                fillMultipleField()
-            }
-
-            function fillMultipleField() {
-                if (!localStorage.getItem("multiple") || parseFloat(localStorage.getItem("multiple")) < 1.1) {
-                    multiple = prompt("Ao atingir a meta deseja multiplicar por?(Informe valor acima de 1)");
-                    localStorage.setItem("multiple", multiple)
-                    fillMultipleField()
-                }
-            }
-
-            if (localStorage.getItem("channel")) {
-                await getUrlLastLive();
-            }
-
-
-            const url = `https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${localStorage.getItem("videoId")}&key=${apiKey}`;
-            var currentLikes = 0;
-            var goalLikes = parseInt(localStorage.getItem("goal"));
-            var multiple = parseInt(localStorage.getItem("multiple"));
-            var increment = parseInt(localStorage.getItem("increment"));
-
-
-            const likeCounter = document.getElementById('like-counter');
-            const progressBar = document.getElementById('progress-bar');
-            const goalText = document.querySelector('.goal');
-
-            likeCounter.innerHTML = `${currentLikes}/${goalLikes}`;
-
-            setInterval(() => atualizarLikes(url), 3000);
             function atualizarLikes(url) {
                 fetch(url)
                     .then(response => response.json())
                     .then(data => {
-                        updateCounter(parseInt(data.items[0].statistics.likeCount));
+                        if (data.items && data.items[0]) {
+                            updateCounter(parseInt(data.items[0].statistics.likeCount));
+                        }
                     })
-                    .catch(error => console.error("Erro ao buscar dados:", error));
+                    .catch(error => console.error("Erro:", error));
             }
-
-            // Função para atualizar o contador e a barra de progresso
-            let lastLikes = 0;
 
             function updateCounter(currentLikes) {
 
-                // Atualiza contador
                 likeCounter.innerHTML = `${currentLikes}/${goalLikes}`;
 
-                // Barra progresso
                 let progressPercentage = (currentLikes / goalLikes) * 100;
-                progressBar.style.width = progressPercentage + "%";
+                progressBar.style.width = Math.min(progressPercentage, 100) + "%";
 
-                // 🎉 Pulse quando aumenta like
                 if (currentLikes > lastLikes) {
                     likeCounter.classList.add("pulse");
 
@@ -250,13 +531,11 @@
                     }, 400);
                 }
 
-                // 🔥 Quando chega perto da meta muda cor
                 if (progressPercentage >= 80) {
                     progressBar.style.background =
                         "linear-gradient(90deg, #ffcc00, #ff0066)";
                 }
 
-                // 🏆 META BATIDA
                 if (currentLikes >= goalLikes) {
 
                     document.querySelector(".progress-bar-container")
@@ -267,14 +546,17 @@
                             .classList.remove("goal-hit");
                     }, 800);
 
-                    // Atualiza meta
+                    launchConfetti();
+
                     if (increment > 0) {
                         goalLikes += increment;
                     } else {
                         goalLikes = Math.floor(goalLikes * multiple);
                     }
 
-                    // Reset barra cor
+                    // Atualizar meta no localStorage
+                    localStorage.setItem("goal", goalLikes);
+
                     progressBar.style.background =
                         "linear-gradient(90deg, #00f5ff, #7f00ff)";
                 }
@@ -283,50 +565,46 @@
             }
         }
 
+        function launchConfetti() {
+            const container = document.getElementById("confetti-container");
 
+            for (let i = 0; i < 25; i++) {
+                const confetti = document.createElement("div");
+                confetti.classList.add("confetti");
 
-        async function getUrlLastLive() {
-            let channelId;
-            await fetch(`https://www.googleapis.com/youtube/v3/channels?part=id&forHandle=${localStorage.getItem("channel")}&key=${apiKey}`)
-                .then(response => response.json())
-                .then(data => {
-                    channelId = data.items[0].id
-                })
-                .catch(error => console.error("Erro ao buscar dados:", error));
+                confetti.style.left = Math.random() * 100 + "%";
 
-            await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&type=video&eventType=live&key=${apiKey}`)
-                .then(response => response.json())
-                .then(data => {
-                    localStorage.setItem("videoId", data.items[0].id.videoId)
-                })
-                .catch(error => console.error("Erro ao buscar dados:", error));
-        }
+                confetti.style.background =
+                    `hsl(${Math.random() * 360}, 100%, 60%)`;
 
-        function youTubeUrlHandle(url) {
-            localStorage.removeItem("videoId");
-            localStorage.removeItem("channel");
-            if (url.includes("@")) {
-                localStorage.setItem("channel", getChannel(url))
-            } else if (url.includes("v=")) {
-                localStorage.setItem("videoId", getYouTubeVideoID(url))
-            } else if (url.includes("live")) {
-                localStorage.setItem("videoId", getLiveId(url))
+                confetti.style.width = confetti.style.height =
+                    Math.random() * 8 + 6 + "px";
+
+                container.appendChild(confetti);
+
+                setTimeout(() => {
+                    confetti.remove();
+                }, 1500);
             }
         }
 
-        function getYouTubeVideoID(url) {
-            const urlObj = new URL(url);
-            return urlObj.searchParams.get("v");
-        }
-
-        function getLiveId(url) {
-            const match = url.match(/live\/([\w-]+)/);
-            return match ? match[1] : null;
-        }
-
-        function getChannel(url) {
-            const match = url.match(/@([\w-]+)/);
-            return match ? match[0] : null;
+        function youTubeUrlHandle(url) {
+            if (url.includes("v=")) {
+                const urlObj = new URL(url);
+                localStorage.setItem("videoId", urlObj.searchParams.get("v"));
+            }
+            else if (url.includes("live/")) {
+                const match = url.match(/live\/([\w-]+)/);
+                if (match) {
+                    localStorage.setItem("videoId", match[1]);
+                }
+            }
+            else if (url.includes("youtu.be/")) {
+                const match = url.match(/youtu\.be\/([\w-]+)/);
+                if (match) {
+                    localStorage.setItem("videoId", match[1]);
+                }
+            }
         }
     </script>
 
