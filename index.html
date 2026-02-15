@@ -33,8 +33,28 @@
             border-radius: 15px;
             padding: 20px;
             width: 320px;
+            max-height: 85vh;
+            overflow-y: auto;
             border: 2px solid rgba(255, 255, 255, 0.2);
             transition: all 0.3s ease;
+        }
+
+        .config-panel::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .config-panel::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+
+        .config-panel::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, #00f5ff, #7f00ff);
+            border-radius: 10px;
+        }
+
+        .config-panel::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(180deg, #00d4dd, #6600dd);
         }
 
         .config-panel.hidden {
@@ -82,6 +102,67 @@
 
         .input-group input::placeholder {
             color: rgba(255, 255, 255, 0.5);
+        }
+
+        .loading-indicator {
+            color: white;
+            font-size: 12px;
+            text-align: center;
+            margin-top: 5px;
+            text-shadow: 0 0 5px rgba(0, 245, 255, 0.5);
+            display: none;
+        }
+
+        .loading-indicator.show {
+            display: block;
+        }
+
+        /* Mensagem de feedback */
+        .feedback-message {
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 13px;
+            text-align: center;
+            font-weight: bold;
+            display: none;
+            animation: slideIn 0.3s ease;
+        }
+
+        .feedback-message.show {
+            display: block;
+        }
+
+        .feedback-message.success {
+            background: rgba(0, 255, 100, 0.2);
+            border: 2px solid rgba(0, 255, 100, 0.5);
+            color: #00ff64;
+            text-shadow: 0 0 10px rgba(0, 255, 100, 0.5);
+        }
+
+        .feedback-message.error {
+            background: rgba(255, 50, 50, 0.2);
+            border: 2px solid rgba(255, 50, 50, 0.5);
+            color: #ff5050;
+            text-shadow: 0 0 10px rgba(255, 50, 50, 0.5);
+        }
+
+        .feedback-message.info {
+            background: rgba(0, 245, 255, 0.2);
+            border: 2px solid rgba(0, 245, 255, 0.5);
+            color: #00f5ff;
+            text-shadow: 0 0 10px rgba(0, 245, 255, 0.5);
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .button-group {
@@ -250,6 +331,34 @@
             text-shadow: 0 0 12px #00f5ff, 0 0 25px #7f00ff;
         }
 
+        /* Mensagem de erro da API */
+        .api-error-message {
+            position: absolute;
+            bottom: -35px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 50, 50, 0.3);
+            border: 2px solid rgba(255, 50, 50, 0.6);
+            border-radius: 8px;
+            padding: 6px 12px;
+            color: #ff5050;
+            font-size: 11px;
+            font-weight: bold;
+            text-shadow: 0 0 8px rgba(255, 50, 50, 0.8);
+            white-space: nowrap;
+            display: none;
+            animation: blink 1.5s infinite;
+        }
+
+        .api-error-message.show {
+            display: block;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
         /* Pulse quando atualiza */
         .pulse {
             animation: pulse 0.4s ease;
@@ -339,8 +448,18 @@
     <div class="config-panel" id="configPanel">
         <div class="config-title">⚙️ Configurações</div>
 
+        <!-- Feedback Message -->
+        <div class="feedback-message" id="feedbackMessage"></div>
+
         <div class="input-group">
-            <label for="videoUrl">URL do vídeo/live:</label>
+            <label for="channelHandle">@ do Canal (ex: @Eltinoriginal):</label>
+            <input type="text" id="channelHandle" placeholder="@NomeDoCanal">
+            <button class="btn btn-primary" onclick="fetchActiveLive()" style="margin-top: 8px; width: 100%;">🔴 Buscar Live Ativa</button>
+            <div class="loading-indicator" id="loadingIndicator">🔍 Buscando...</div>
+        </div>
+
+        <div class="input-group">
+            <label for="videoUrl">OU URL do vídeo/live:</label>
             <input type="text" id="videoUrl" placeholder="https://youtube.com/watch?v=...">
         </div>
 
@@ -357,6 +476,14 @@
         <div class="input-group">
             <label for="multipleInput">Multiplicador:</label>
             <input type="number" id="multipleInput" placeholder="2" min="1" step="0.1" value="2">
+        </div>
+
+        <div class="input-group">
+            <label for="updateIntervalInput">Intervalo de atualização (segundos):</label>
+            <input type="number" id="updateIntervalInput" placeholder="10" min="10" max="60" value="10">
+            <small style="color: rgba(255, 255, 255, 0.7); font-size: 10px; display: block; margin-top: 4px;">
+                💡 Intervalos maiores economizam API (mínimo: 10s)
+            </small>
         </div>
 
         <div class="button-group">
@@ -385,54 +512,182 @@
                 </div>
             </div>
 
+            <!-- Mensagem de erro da API -->
+            <div class="api-error-message" id="apiErrorMessage">
+                ⚠️ Todas API keys excederam o limite.
+            </div>
+
         </div>
 
     </div>
 
     <script>
-        const apiKey = "AIzaSyCfYdJr8i8CdybGPKWlM1N9vGxcBsl5JYE";
+        const apiKeys = ["AIzaSyCfYdJr8i8CdybGPKWlM1N9vGxcBsl5JYE", "AIzaSyDbN5c5swmOWglR5z0rPN5UbgemLmZOeh8"];
         let updateInterval = null;
+        let currentApiKeyIndex = -1;
+        let failedApiKeys = new Set();
+
+        // Função para obter uma API key aleatória disponível
+        function getRandomApiKey() {
+            const availableKeys = apiKeys.filter((_, index) => !failedApiKeys.has(index));
+            
+            if (availableKeys.length === 0) {
+                // Se todas falharam, resetar e tentar novamente
+                failedApiKeys.clear();
+                localStorage.removeItem("failedApiKeys");
+                console.log("🔄 Todas as API keys falharam. Resetando...");
+            }
+            
+            // Se já tem um índice válido e disponível, continuar usando
+            if (currentApiKeyIndex >= 0 && !failedApiKeys.has(currentApiKeyIndex)) {
+                return apiKeys[currentApiKeyIndex];
+            }
+            
+            // Selecionar uma key aleatória disponível
+            const availableIndices = apiKeys
+                .map((_, index) => index)
+                .filter(index => !failedApiKeys.has(index));
+            
+            if (availableIndices.length === 0) {
+                currentApiKeyIndex = 0;
+            } else {
+                currentApiKeyIndex = availableIndices[Math.floor(Math.random() * availableIndices.length)];
+            }
+            
+            console.log(`🔑 Usando API key #${currentApiKeyIndex + 1}`);
+            return apiKeys[currentApiKeyIndex];
+        }
+
+        // Função para marcar API key atual como falhada e obter a próxima
+        function switchToNextApiKey() {
+            failedApiKeys.add(currentApiKeyIndex);
+            localStorage.setItem("failedApiKeys", JSON.stringify([...failedApiKeys]));
+            
+            const remainingKeys = apiKeys.length - failedApiKeys.size;
+            console.log(`⚠️ API key #${currentApiKeyIndex + 1} excedeu o limite. ${remainingKeys} key(s) restante(s).`);
+            
+            if (remainingKeys > 0) {
+                // Tentar próxima key disponível
+                const nextKey = getRandomApiKey();
+                showFeedback(`🔄 Trocando para API key #${currentApiKeyIndex + 1}...`, "info");
+                return nextKey;
+            } else {
+                // Todas as keys falharam
+                showFeedback("❌ Todas as API keys excederam o limite!", "error");
+                document.getElementById("apiErrorMessage").classList.add("show");
+                return null;
+            }
+        }
 
         // Carregar configurações salvas ao iniciar
         window.onload = function () {
+            // Carregar API keys que falharam anteriormente
+            const savedFailedKeys = localStorage.getItem("failedApiKeys");
+            if (savedFailedKeys) {
+                try {
+                    failedApiKeys = new Set(JSON.parse(savedFailedKeys));
+                } catch (e) {
+                    failedApiKeys = new Set();
+                }
+            }
+            
+            // Selecionar API key inicial
+            getRandomApiKey();
+            
             loadSavedConfig();
+            // Buscar live automaticamente se houver canal salvo
+            autoFetchLive();
         };
+
+        function showFeedback(message, type = 'info') {
+            const feedback = document.getElementById('feedbackMessage');
+            feedback.textContent = message;
+            feedback.className = `feedback-message show ${type}`;
+            
+            // Auto-ocultar após 5 segundos
+            setTimeout(() => {
+                feedback.classList.remove('show');
+            }, 5000);
+        }
 
         function loadSavedConfig() {
             const videoId = localStorage.getItem("videoId");
-            const goal = localStorage.getItem("goal");
+            const channelHandle = localStorage.getItem("channelHandle");
+            const initialGoal = localStorage.getItem("initialGoal"); // Sempre carrega a meta inicial
             const increment = localStorage.getItem("increment");
             const multiple = localStorage.getItem("multiple") || "2";
+            const updateInterval = localStorage.getItem("updateInterval") || "10";
 
+            if (channelHandle) {
+                document.getElementById("channelHandle").value = channelHandle;
+            }
             if (videoId) {
                 // Reconstrói a URL aproximada (só para exibição)
                 document.getElementById("videoUrl").value = `https://youtube.com/watch?v=${videoId}`;
             }
-            if (goal) {
-                document.getElementById("goalInput").value = goal;
+            if (initialGoal) {
+                document.getElementById("goalInput").value = initialGoal;
             }
             if (increment) {
                 document.getElementById("incrementInput").value = increment;
             }
             document.getElementById("multipleInput").value = multiple;
+            document.getElementById("updateIntervalInput").value = updateInterval;
+        }
 
-            // Se já tem configuração salva, pode iniciar automaticamente
-            if (videoId && goal) {
-                // Usuário pode escolher iniciar manualmente
+        async function autoFetchLive() {
+            const channelHandle = localStorage.getItem("channelHandle");
+            const videoId = localStorage.getItem("videoId");
+            const initialGoal = localStorage.getItem("initialGoal");
+
+            // Se já tem tudo configurado com canal, buscar live ativa
+            if (channelHandle && initialGoal) {
+                showFeedback('🔄 Buscando live ativa...', 'info');
+                await fetchActiveLive(true); // true = silent mode (auto)
+                
+                // Resetar goal para a meta inicial ao buscar nova live
+                localStorage.setItem("goal", initialGoal);
+                
+                // Se tiver videoId válido após buscar, iniciar
+                if (localStorage.getItem("videoId")) {
+                    setTimeout(() => {
+                        startLiveMode(true);
+                    }, 1000);
+                }
+            }
+            // Se tem videoId e initialGoal mas não tem canal, iniciar direto
+            else if (videoId && initialGoal) {
+                // Resetar goal para a meta inicial
+                localStorage.setItem("goal", initialGoal);
+                setTimeout(() => {
+                    startLiveMode(true);
+                }, 500);
             }
         }
 
         function clearConfig() {
             localStorage.clear();
+            document.getElementById("channelHandle").value = "";
             document.getElementById("videoUrl").value = "";
             document.getElementById("goalInput").value = "";
             document.getElementById("incrementInput").value = "";
             document.getElementById("multipleInput").value = "2";
+            document.getElementById("updateIntervalInput").value = "10";
 
             if (updateInterval) {
                 clearInterval(updateInterval);
                 updateInterval = null;
             }
+            
+            // Resetar API keys falhadas
+            failedApiKeys.clear();
+            currentApiKeyIndex = -1;
+            getRandomApiKey();
+
+            // Ocultar mensagem de erro da API se estiver visível
+            document.getElementById("apiErrorMessage").classList.remove("show");
+
+            showFeedback("🗑️ Configurações limpas com sucesso!", "success");
         }
 
         function toggleConfigPanel() {
@@ -440,31 +695,47 @@
             panel.classList.toggle("hidden");
         }
 
-        function startLiveMode() {
+        function startLiveMode(silent = false) {
             const videoUrl = document.getElementById("videoUrl").value;
+            const channelHandle = document.getElementById("channelHandle").value;
             const goal = document.getElementById("goalInput").value;
             const increment = document.getElementById("incrementInput").value;
             const multiple = document.getElementById("multipleInput").value;
+            let updateIntervalSeconds = parseInt(document.getElementById("updateIntervalInput").value);
+
+            // Garantir mínimo de 10 segundos
+            if (!updateIntervalSeconds || updateIntervalSeconds < 10) {
+                updateIntervalSeconds = 10;
+            }
 
             // Validações
-            if (!videoUrl) {
-                alert("Por favor, informe a URL do vídeo/live!");
+            if (!videoUrl && !localStorage.getItem("videoId")) {
+                if (!silent) showFeedback("❌ Por favor, informe a URL do vídeo/live ou busque uma live ativa!", "error");
                 return;
             }
             if (!goal || goal < 0) {
-                alert("Por favor, informe uma meta válida!");
+                if (!silent) showFeedback("❌ Por favor, informe uma meta válida!", "error");
                 return;
             }
             if (!increment && increment !== "0") {
-                alert("Por favor, informe o incremento (ou 0)!");
+                if (!silent) showFeedback("❌ Por favor, informe o incremento (ou 0)!", "error");
                 return;
             }
 
             // Salvar configurações
-            youTubeUrlHandle(videoUrl);
+            if (videoUrl) {
+                youTubeUrlHandle(videoUrl);
+            }
+            if (channelHandle) {
+                localStorage.setItem("channelHandle", channelHandle);
+            }
+            
+            // Salvar tanto a meta atual quanto a meta inicial
             localStorage.setItem("goal", goal);
+            localStorage.setItem("initialGoal", goal); // Meta inicial nunca muda por incrementos
             localStorage.setItem("increment", increment);
             localStorage.setItem("multiple", multiple || "2");
+            localStorage.setItem("updateInterval", updateIntervalSeconds);
 
             // Entrar em modo live
             document.getElementById("configPanel").classList.add("hidden");
@@ -478,16 +749,27 @@
             const videoId = localStorage.getItem("videoId");
 
             if (!videoId) {
-                alert("Video ID não encontrado!");
+                showFeedback("❌ Video ID não encontrado!", "error");
+                document.getElementById("configPanel").classList.remove("hidden");
+                document.getElementById("toggleConfigBtn").classList.remove("show");
                 return;
             }
 
+            const currentApiKey = getRandomApiKey();
             const url =
-                `https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${videoId}&key=${apiKey}`;
+                `https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${videoId}&key=${currentApiKey}`;
 
             let goalLikes = parseInt(localStorage.getItem("goal"));
             let multiple = parseFloat(localStorage.getItem("multiple"));
             let increment = parseInt(localStorage.getItem("increment"));
+            let updateIntervalSeconds = parseInt(localStorage.getItem("updateInterval")) || 10;
+
+            // Garantir mínimo de 5 segundos
+            if (updateIntervalSeconds < 5) {
+                updateIntervalSeconds = 5;
+            }
+
+            const updateIntervalMs = updateIntervalSeconds * 1000;
 
             const likeCounter = document.getElementById("like-counter");
             const progressBar = document.getElementById("progress-bar");
@@ -502,18 +784,82 @@
             // Buscar imediatamente
             atualizarLikes(url);
 
-            // Depois atualizar a cada 3 segundos
-            updateInterval = setInterval(() => atualizarLikes(url), 3000);
+            // Depois atualizar no intervalo configurado
+            updateInterval = setInterval(() => atualizarLikes(url), updateIntervalMs);
 
             function atualizarLikes(url) {
                 fetch(url)
-                    .then(response => response.json())
+                    .then(response => {
+                        if (!response.ok) {
+                            // Se a resposta não for ok (status 4xx ou 5xx)
+                            if (response.status === 403) {
+                                // 403 geralmente indica quota excedida
+                                throw { quotaExceeded: true };
+                            }
+                            return response.json().then(errorData => {
+                                throw errorData;
+                            });
+                        }
+                        return response.json();
+                    })
                     .then(data => {
+                        // Verificar se há erro na resposta mesmo com status 200
+                        if (data.error) {
+                            throw data;
+                        }
+                        
                         if (data.items && data.items[0]) {
+                            // Ocultar mensagem de erro se estava visível
+                            document.getElementById("apiErrorMessage").classList.remove("show");
                             updateCounter(parseInt(data.items[0].statistics.likeCount));
                         }
                     })
-                    .catch(error => console.error("Erro:", error));
+                    .catch(error => {
+                        console.error("Erro na API:", error);
+                        
+                        let isQuotaError = false;
+                        
+                        // Verificar diferentes formatos de erro de quota
+                        if (error.quotaExceeded) {
+                            isQuotaError = true;
+                        } else if (error.error && error.error.errors) {
+                            const quotaError = error.error.errors.find(e => 
+                                e.reason === 'quotaExceeded' || 
+                                e.reason === 'rateLimitExceeded' ||
+                                e.domain === 'usageLimits'
+                            );
+                            if (quotaError) {
+                                isQuotaError = true;
+                            }
+                        } else if (error.error && error.error.code === 403) {
+                            isQuotaError = true;
+                        }
+                        
+                        if (isQuotaError) {
+                            // Tentar trocar para próxima API key
+                            const nextKey = switchToNextApiKey();
+                            
+                            if (nextKey) {
+                                // Reiniciar com nova key
+                                setTimeout(() => {
+                                    if (updateInterval) {
+                                        clearInterval(updateInterval);
+                                    }
+                                    initGoalLike();
+                                }, 2000);
+                            } else {
+                                // Todas as keys falharam - mostrar mensagem e parar
+                                document.getElementById("apiErrorMessage").classList.add("show");
+                                
+                                if (updateInterval) {
+                                    clearInterval(updateInterval);
+                                    updateInterval = null;
+                                }
+                                
+                                console.warn("⚠️ Todas as API keys excederam o limite. Atualizações pausadas.");
+                            }
+                        }
+                    });
             }
 
             function updateCounter(currentLikes) {
@@ -554,8 +900,9 @@
                         goalLikes = Math.floor(goalLikes * multiple);
                     }
 
-                    // Atualizar meta no localStorage
+                    // Atualizar apenas a meta atual (goal), não a meta inicial (initialGoal)
                     localStorage.setItem("goal", goalLikes);
+                    // initialGoal permanece inalterado para ser usado ao recarregar
 
                     progressBar.style.background =
                         "linear-gradient(90deg, #00f5ff, #7f00ff)";
@@ -585,6 +932,114 @@
                 setTimeout(() => {
                     confetti.remove();
                 }, 1500);
+            }
+        }
+
+        async function fetchActiveLive(silent = false) {
+            const channelHandle = document.getElementById("channelHandle").value.trim();
+            const loadingIndicator = document.getElementById("loadingIndicator");
+            
+            if (!channelHandle) {
+                if (!silent) showFeedback("❌ Por favor, informe o @ do canal!", "error");
+                return;
+            }
+
+            // Remover @ se o usuário incluiu
+            const handle = channelHandle.replace('@', '');
+            
+            // Mostrar loading
+            loadingIndicator.classList.add("show");
+            
+            try {
+                const currentApiKey = getRandomApiKey();
+                
+                // Passo 1: Buscar canal pelo handle
+                const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${handle}&type=channel&key=${currentApiKey}`;
+                const searchResponse = await fetch(searchUrl);
+                const searchData = await searchResponse.json();
+                
+                // Verificar erro de quota
+                if (searchData.error) {
+                    const quotaError = searchData.error.errors?.find(e => 
+                        e.reason === 'quotaExceeded' || 
+                        e.reason === 'rateLimitExceeded'
+                    );
+                    if (quotaError) {
+                        loadingIndicator.classList.remove("show");
+                        
+                        // Tentar com próxima API key
+                        const nextKey = switchToNextApiKey();
+                        if (nextKey && !silent) {
+                            showFeedback("🔄 Tentando com outra API key...", "info");
+                            // Tentar novamente
+                            setTimeout(() => fetchActiveLive(silent), 1000);
+                            return;
+                        }
+                        
+                        if (!silent) showFeedback("⚠️ Limite da API excedido. Tente novamente mais tarde.", "error");
+                        return;
+                    }
+                }
+                
+                if (!searchData.items || searchData.items.length === 0) {
+                    loadingIndicator.classList.remove("show");
+                    if (!silent) showFeedback("❌ Canal não encontrado!", "error");
+                    return;
+                }
+                
+                const channelId = searchData.items[0].id.channelId;
+                
+                // Passo 2: Buscar lives ativas do canal (usar mesma key)
+                const liveUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&eventType=live&type=video&key=${currentApiKey}`;
+                const liveResponse = await fetch(liveUrl);
+                const liveData = await liveResponse.json();
+                
+                // Verificar erro de quota na segunda chamada
+                if (liveData.error) {
+                    const quotaError = liveData.error.errors?.find(e => 
+                        e.reason === 'quotaExceeded' || 
+                        e.reason === 'rateLimitExceeded'
+                    );
+                    if (quotaError) {
+                        loadingIndicator.classList.remove("show");
+                        
+                        // Tentar com próxima API key
+                        const nextKey = switchToNextApiKey();
+                        if (nextKey && !silent) {
+                            showFeedback("🔄 Tentando com outra API key...", "info");
+                            // Tentar novamente
+                            setTimeout(() => fetchActiveLive(silent), 1000);
+                            return;
+                        }
+                        
+                        if (!silent) showFeedback("⚠️ Limite da API excedido. Tente novamente mais tarde.", "error");
+                        return;
+                    }
+                }
+                
+                loadingIndicator.classList.remove("show");
+                
+                if (!liveData.items || liveData.items.length === 0) {
+                    if (!silent) showFeedback("⚠️ Nenhuma live ativa encontrada neste canal!", "error");
+                    return;
+                }
+                
+                // Pegar a primeira live ativa
+                const liveVideoId = liveData.items[0].id.videoId;
+                const liveTitle = liveData.items[0].snippet.title;
+                
+                // Salvar e preencher
+                localStorage.setItem("videoId", liveVideoId);
+                document.getElementById("videoUrl").value = `https://youtube.com/watch?v=${liveVideoId}`;
+                
+                if (!silent) {
+                    showFeedback(`✅ Live encontrada: "${liveTitle}"`, "success");
+                }
+                
+            } catch (error) {
+                console.error("Erro ao buscar live:", error);
+                loadingIndicator.classList.remove("show");
+                if (!silent) showFeedback("❌ Erro ao buscar live ativa. Verifique o @ do canal e tente novamente.", "error");
             }
         }
 
